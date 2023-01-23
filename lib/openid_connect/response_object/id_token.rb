@@ -23,7 +23,9 @@ module OpenIDConnect
 
       def verify!(expected = {})
         raise ExpiredToken.new('Invalid ID token: Expired token') unless exp.to_i > Time.now.to_i
-        raise InvalidIssuer.new('Invalid ID token: Issuer does not match') unless iss == expected[:issuer]
+        raise InvalidIssuer.new('Invalid ID token: Issuer does not match') unless iss == expected[:issuer] ||
+          (iss =~ /^https:\/\/login.microsoftonline.com\/[a-z0-9-]+\/v2\.0/ &&
+            expected[:issuer] = 'https://login.microsoftonline.com/organizations/v2.0')
         raise InvalidNonce.new('Invalid ID Token: Nonce does not match') unless nonce == expected[:nonce]
 
         # aud(ience) can be a string or an array of strings

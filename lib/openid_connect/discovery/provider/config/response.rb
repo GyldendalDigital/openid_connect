@@ -57,7 +57,8 @@ module OpenIDConnect
           ]))
 
           validates(*required_attributes, presence: true)
-          validates(*uri_attributes.values.flatten, url: true, allow_nil: true)
+          validates(*uri_attributes.values.flatten.reject{ |k| k == :issuer}, url: true, allow_nil: true)
+          validates :issuer, url: true, if: -> { expected_issuer == 'https://login.microsoftonline.com/organizations/v2.0' }
           validates :issuer, with: :validate_issuer_matching
 
           def initialize(hash)
@@ -97,6 +98,16 @@ module OpenIDConnect
           private
 
           def validate_issuer_matching
+            # Patch to handle discovery validation where issuer in the response
+            # from Microsoft is not what we expect for anything else than
+            # with a tenant ID. It does not work for common and organization, so
+            # we make a special exception for it as the returned URL is not valid
+            if issuer == 'https://login.microsoftonline.com/{tenantid}/v2.0' &&
+              expected_issuer == 'https://login.microsoftonline.com/organizations/v2.0'
+              OpenIDConnect.logger.info "issuer partial mismatching OK for microsoft"
+              return
+            end
+
             if expected_issuer.present? && issuer != expected_issuer
               if OpenIDConnect.validate_discovery_issuer
                 errors.add :issuer, 'mismatch'
